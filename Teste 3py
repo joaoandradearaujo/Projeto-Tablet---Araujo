@@ -1,0 +1,163 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+from PIL import Image, ImageTk
+
+class InspecaoApp:
+    
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Inspeção - Lançamento")
+        self.root.geometry("1200x800")
+        self.root.configure(bg='#d0d0d0')
+
+        self.create_toolbar()
+
+        self.notebook = ttk.Notebook(root)
+        self.notebook.pack(expand=1, fill="both", padx=10, pady=10)
+
+        self.create_tabs()
+
+        self.status_bar = tk.Label(root, text="08:58 13/08/2024", bd=1, relief=tk.SUNKEN, anchor=tk.E, bg='#b0b0b0')
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+    
+        self.sections_completed = {
+            'Introdução': False,
+            'Inspeção': False
+        }
+
+        self.notebook.bind("<<NotebookTabChanged>>", self.animate_tab_change)
+
+    def create_toolbar(self):
+        self.toolbar = tk.Frame(self.root, bd=1, relief=tk.RAISED, bg='#b0b0b0')
+        self.toolbar.pack(side=tk.TOP, fill=tk.X)
+        
+        self.finish_button = tk.Button(
+            self.toolbar, text="Concluir Inspeção", command=self.concluir_inspecao, 
+            relief=tk.FLAT, bg='#4CAF50', fg='white', font=('Arial', 12, 'bold')
+        )
+        self.finish_button.pack(side=tk.RIGHT, padx=10, pady=5)
+
+    def create_tabs(self):
+        tabs = [
+            ("Introdução", self.create_intro_tab),
+            ("Inspeção", self.create_inspecao_tab)
+        ]
+
+        for tab_name, tab_function in tabs:
+            frame = tk.Frame(self.notebook, bg='#d0d0d0')
+            self.notebook.add(frame, text=tab_name)
+            tab_function(frame)
+
+    def create_intro_tab(self, frame):
+        tk.Label(frame, text="Bem-vindo à Inspeção", font=('Arial', 18, 'bold'), bg='#d0d0d0').pack(pady=20)
+        tk.Button(frame, text="Salvar", command=lambda: self.salvar('Introdução'), font=('Arial', 12, 'bold'), bg='#4CAF50', fg='white').pack(pady=10)
+
+    def create_inspecao_tab(self, frame):
+        main_frame = tk.Frame(frame, bg='#d0d0d0')
+        main_frame.pack(expand=True, fill='both', padx=20, pady=20)
+
+        frame_dados = tk.Frame(main_frame, bg='#d0d0d0')
+        frame_dados.pack(side=tk.LEFT, fill=tk.BOTH, padx=10)
+
+        frame_opcoes = tk.Frame(main_frame, bg='#d0d0d0')
+        frame_opcoes.pack(side=tk.RIGHT, fill=tk.BOTH, padx=10)
+
+        tk.Label(frame_dados, text="Novo Teste:", bg='#d0d0d0', font=('Arial', 12, 'bold')).pack(pady=5, anchor='w')
+        self.entry_text = tk.Entry(frame_dados, font=('Arial', 12))
+        self.entry_text.pack(pady=10, fill=tk.X)
+
+        tk.Button(frame_dados, text="Adicionar Teste", command=self.add_teste, width=20, font=('Arial', 12, 'bold'), bg='#4CAF50', fg='white').pack(pady=5)
+
+        tk.Label(frame_dados, text="Seletor de Locais:", bg='#d0d0d0', font=('Arial', 12, 'bold')).pack(pady=5, anchor='w')
+
+        self.testes = ["Teste {}".format(i) for i in range(1, 6)]
+
+        self.local_vars = {}
+        for i, teste in enumerate(self.testes):
+            var = tk.StringVar(value=teste)
+            self.local_vars[teste] = var
+            tk.Checkbutton(frame_dados, text=teste, variable=var, bg='#d0d0d0').pack(pady=5, anchor='w')
+
+        select_buttons = [
+            ("Selecionar Todos", self.selecionar_todos),
+            ("Desmarcar Todos", self.desmarcar_todos)
+        ]
+        for text, command in select_buttons:
+            tk.Button(frame_dados, text=text, command=command, width=20, font=('Arial', 12, 'bold'), bg='#4CAF50', fg='white').pack(pady=5)
+
+        tk.Label(frame_opcoes, text="Opções de Tipo:", bg='#d0d0d0', font=('Arial', 12, 'bold')).pack(pady=5, anchor='w')
+        self.tipo_var = tk.StringVar()
+        tipo_options = [("Interna", "Interna"), ("Externa", "Externa")]
+        for text, value in tipo_options:
+            tk.Radiobutton(frame_opcoes, text=text, variable=self.tipo_var, value=value, bg='#d0d0d0').pack(anchor='w')
+
+        tk.Label(frame_opcoes, text="Incluir:", bg='#d0d0d0', font=('Arial', 12, 'bold')).pack(pady=5, anchor='w')
+        self.recomendacao_var = tk.IntVar()
+        self.dda_var = tk.IntVar()
+        include_options = [("Recomendação", self.recomendacao_var), ("DDA", self.dda_var)]
+        for text, variable in include_options:
+            tk.Checkbutton(frame_opcoes, text=text, variable=variable, bg='#d0d0d0').pack(anchor='w')
+
+        tk.Label(frame_opcoes, text="Resultado VI / VE:", bg='#d0d0d0', font=('Arial', 12, 'bold')).pack(pady=5, anchor='w')
+        self.resultado_text = tk.Text(frame_opcoes, height=10, width=40, font=('Arial', 12))
+        self.resultado_text.pack(pady=10)
+
+        # Frame para anexar imagens
+        image_frame = tk.Frame(main_frame, bg='#d0d0d0')
+        image_frame.pack(side=tk.BOTTOM, fill=tk.BOTH, padx=10, pady=10)
+
+        self.image_labels = []
+        for i in range(4):
+            image_label = tk.Label(image_frame, text=f"Imagem {i+1}", bg='#d0d0d0', width=20, height=10, relief=tk.RAISED)
+            image_label.grid(row=i // 2, column=i % 2, padx=10, pady=10)
+            attach_button = tk.Button(image_frame, text="Anexar Imagem", command=lambda lbl=image_label: self.attach_image(lbl))
+            attach_button.grid(row=i // 2, column=(i % 2) + 1, padx=10, pady=10)
+            self.image_labels.append(image_label)
+
+        tk.Button(frame, text="Salvar", command=lambda: self.salvar('Inspeção'), font=('Arial', 12, 'bold'), bg='#4CAF50', fg='white').pack(pady=10, side=tk.BOTTOM, anchor='e')
+
+    def attach_image(self, label):
+        """
+        Anexa uma imagem ao rótulo especificado.
+        """
+        file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.png;*.jpg;*.jpeg;*.gif")])
+        if file_path:
+            image = Image.open(file_path)
+            image = image.resize((200, 150), Image.ANTIALIAS)  # Redimensiona a imagem
+            photo = ImageTk.PhotoImage(image)
+            label.configure(image=photo, text="")  # Atualiza o rótulo com a imagem
+            label.image = photo  # Mantém uma referência da imagem para evitar coleta de lixo
+
+    def add_teste(self):
+        novo_teste = self.entry_text.get()
+        if novo_teste:
+            self.testes.append(novo_teste)
+            var = tk.StringVar(value=novo_teste)
+            self.local_vars[novo_teste] = var
+            tk.Checkbutton(self.frame_dados, text=novo_teste, variable=var, bg='#d0d0d0').pack(pady=5, anchor='w')
+            self.entry_text.delete(0, tk.END)
+
+    def selecionar_todos(self):
+        for var in self.local_vars.values():
+            var.set(var.get())
+
+    def desmarcar_todos(self):
+        for var in self.local_vars.values():
+            var.set("")
+
+    def concluir_inspecao(self):
+        messagebox.showinfo("Concluir Inspeção", "Inspeção concluída com sucesso!")
+
+    def salvar(self, secao):
+        if secao in self.sections_completed:
+            self.sections_completed[secao] = True
+            messagebox.showinfo("Salvar", f"Progresso da seção '{secao}' salvo com sucesso!")
+
+    def animate_tab_change(self, event):
+        current_tab = self.notebook.select()
+        print(f"Você está na aba: {self.notebook.tab(current_tab, 'text')}")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = InspecaoApp(root)
+    root.mainloop()
