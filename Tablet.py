@@ -7,6 +7,8 @@ from openpyxl.drawing.image import Image
 from PIL import Image as PilImage
 import os
 
+#Teste Bruno
+
 class EquipmentInspectionApp(tk.Tk):
     def __init__(self):
         super().__init__()
